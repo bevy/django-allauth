@@ -536,6 +536,44 @@ class AccountTests(TestCase):
                 else
                 'The username and/or password you specified are not correct.')
 
+
+    @override_settings(
+        ACCOUNT_EMAIL_VERIFICATION=app_settings.EmailVerificationMethod
+        .OPTIONAL,
+        ACCOUNT_LOGIN_ATTEMPTS_LIMIT=3)
+    def test_login_failed_attempts_exceeded_with_casing(self):
+        user = get_user_model().objects.create(username='ronald')
+        user.set_password('doe')
+        user.save()
+        EmailAddress.objects.create(user=user,
+                                    email="ronald@example.com",
+                                    primary=True,
+                                    verified=False)
+        for i in range(4):
+            is_locked = (i >= 3)
+            resp = self.client.post(
+                reverse('account_login'),
+                {'login': 'ronald@example.com',
+                 'password': 'wrong'})
+            self.assertFormError(
+                resp,
+                'form',
+                None,
+                'Too many failed login attempts. Try again later.'
+                if is_locked
+                else
+                'The username and/or password you specified are not correct.')
+
+        resp = self.client.post(
+            reverse('account_login'),
+            {'login': 'RoNaLd@example.com',
+             'password': 'wrong'})
+        self.assertFormError(
+            resp,
+            'form',
+            None,
+            'Too many failed login attempts. Try again later.')
+
     def test_login_unverified_account_mandatory(self):
         """Tests login behavior when email verification is mandatory."""
         user = get_user_model().objects.create(username='john')
