@@ -1,3 +1,10 @@
+from __future__ import unicode_literals
+
+import hashlib
+import json
+import time
+import warnings
+
 from django import forms
 from django.conf import settings
 from django.contrib import messages
@@ -20,12 +27,6 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
-
-import hashlib
-import json
-import time
-import warnings
-from __future__ import unicode_literals
 
 from ..utils import (
     build_absolute_uri,
@@ -195,7 +196,7 @@ class DefaultAccountAdapter(object):
         username is already present it is assumed to be valid
         (unique).
         """
-        from .utils import user_email, user_field, user_username
+        from .utils import user_username, user_email, user_field
         first_name = user_field(user, 'first_name')
         last_name = user_field(user, 'last_name')
         email = user_email(user)
@@ -218,7 +219,7 @@ class DefaultAccountAdapter(object):
         Saves a new `User` instance using information provided in the
         signup form.
         """
-        from .utils import user_email, user_field, user_username
+        from .utils import user_username, user_email, user_field
 
         data = form.cleaned_data
         first_name = data.get('first_name')
@@ -414,9 +415,8 @@ class DefaultAccountAdapter(object):
         try:
             from django.utils.http import url_has_allowed_host_and_scheme
         except ImportError:
-            from django.utils.http import (
-                is_safe_url as url_has_allowed_host_and_scheme,
-            )
+            from django.utils.http import \
+                is_safe_url as url_has_allowed_host_and_scheme
 
         return url_has_allowed_host_and_scheme(url, allowed_hosts=None)
 
