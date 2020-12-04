@@ -523,7 +523,7 @@ class AccountTests(TestCase):
             is_locked = (i >= 3)
             resp = self.client.post(
                 reverse('account_login'),
-                {'login': 'john',
+                {'login': ['john', 'John', 'JOHN', 'JOhn', 'joHN'][i],
                  'password': (
                      'doe' if is_valid_attempt
                      else 'wrong')})
