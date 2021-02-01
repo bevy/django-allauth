@@ -627,3 +627,71 @@ class SocialAccountTests(TestCase):
 
         resp = self.client.get(reverse('socialaccount_signup'))
         self.assertRedirects(resp, reverse('account_login'))
+
+
+class SocialLoginTests(TestCase):
+    id = "salesforce"
+    uid = "0034userD3"
+
+    def setUp(self):
+        super(SocialLoginTests, self).setUp()
+        site = Site.objects.get_current()
+        provider = providers.registry.by_id(self.id)
+        app = SocialApp.objects.create(
+            provider=provider.id,
+            name=provider.id,
+            client_id='app123id',
+            key='123',
+            secret='dummy')
+        app.sites.add(site)
+
+    def setup_preexisting_user(self):
+        user = get_user_model()(
+            email="original@example.com",
+            first_name="Pat",
+            last_name="Smith",
+            is_active=True,
+        )
+        user.save()
+        SocialAccount.objects.create(
+            user=user,
+            provider=self.id,
+            uid=self.uid,
+            extra_data={
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            },
+        )
+
+    def sociallogin_from_response(self):
+        user = get_user_model()(
+            email="other@example.com",
+            first_name="Jo",
+            last_name="Doe",
+        )
+        user.set_unusable_password()
+        socialaccount = SocialAccount(
+            extra_data={
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+            },
+            uid=self.uid.lower(),
+            provider=self.id,
+        )
+        sociallogin = SocialLogin(
+            account=socialaccount,
+            email_addresses=[user.email],
+        )
+        sociallogin.user = user
+        return sociallogin
+
+    def test_lookup_is_case_sensitive(self):
+        self.setup_preexisting_user()
+        sociallogin = self.sociallogin_from_response()
+
+        sociallogin.lookup()
+
+        self.assertIsNone(sociallogin.account.pk)
+        self.assertIsNone(sociallogin.user.pk)
