@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import warnings
 
 from django.conf import settings
@@ -7,6 +8,7 @@ from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages.middleware import MessageMiddleware
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.contrib.sites.models import Site
+from django.db import connections
 from django.test.client import RequestFactory
 from django.test.utils import override_settings
 from django.urls import reverse
@@ -17,7 +19,7 @@ from ..account.utils import user_email, user_username
 from ..compat import parse_qs, urlparse
 from ..tests import MockedResponse, TestCase, mocked_response
 from ..utils import get_user_model
-from . import providers
+from . import app_settings, providers
 from .helpers import complete_social_login
 from .models import SocialAccount, SocialApp, SocialLogin
 from .views import signup
@@ -630,6 +632,9 @@ class SocialAccountTests(TestCase):
 
 
 class SocialLoginTests(TestCase):
+    UID_DEFAULT = '"uid" varchar({0}) NOT NULL,'.format(app_settings.UID_MAX_LENGTH)
+    UID_NOCASE = '"uid" varchar({0}) NOT NULL COLLATE NOCASE,'.format(app_settings.UID_MAX_LENGTH)
+
     id = "salesforce"
     uid = "0034userD3"
 
@@ -644,6 +649,30 @@ class SocialLoginTests(TestCase):
             key='123',
             secret='dummy')
         app.sites.add(site)
+        db_connection = connections["default"]
+        self.cursor = db_connection.cursor()
+        self.original_sql = self.get_socialaccount_sql()
+
+    def tearDown(self):
+        self.drop_socialaccount()
+        self.cursor.execute(self.original_sql)
+
+    def drop_socialaccount(self):
+        self.cursor.execute("DROP TABLE socialaccount_socialaccount")
+
+    def get_socialaccount_sql(self):
+        self.cursor.execute("SELECT sql FROM sqlite_master WHERE tbl_name = 'socialaccount_socialaccount'")
+        row = self.cursor.fetchone()
+        return row[0]
+
+    def make_socialaccount_uid_case_insensitive(self):
+        sql = self.get_socialaccount_sql()
+        self.drop_socialaccount()
+        nocase_sql = sql.replace(self.UID_DEFAULT, self.UID_NOCASE)
+        self.cursor.execute(nocase_sql)
+
+    def test_default_uid_definition(self):
+        self.assertIn(self.UID_DEFAULT, self.original_sql)
 
     def setup_preexisting_user(self):
         user = get_user_model()(
@@ -688,6 +717,7 @@ class SocialLoginTests(TestCase):
         return sociallogin
 
     def test_lookup_is_case_sensitive(self):
+        self.make_socialaccount_uid_case_insensitive()
         self.setup_preexisting_user()
         sociallogin = self.sociallogin_from_response()
 
