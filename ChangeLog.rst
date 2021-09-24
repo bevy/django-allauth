@@ -21,7 +21,7 @@ Note worthy changes
 Backwards incompatible changes
 ------------------------------
 
-- Dropped Python 2 and Django 1 compatibility.
+- ~Dropped Python 2 and Django 1 compatibility.~
 
 
 0.40.0 (2019-08-29)
