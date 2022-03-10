@@ -119,6 +119,8 @@ Supported Providers
 
 - Frontier (OAuth2)
 
+- Gitea (OAuth2)
+
 - Github (OAuth2)
 
 - GitLab (OAuth2)
@@ -126,6 +128,8 @@ Supported Providers
 - Globus (OAuth2)
 
 - Google (OAuth2)
+
+- Gumroad (OAuth2)
 
 - Hubic (OAuth2)
 
@@ -137,6 +141,8 @@ Supported Providers
 
 - Keycloak (OAuth2)
 
+- LemonLDAP::NG (OAuth2)
+
 - Line (OAuth2)
 
 - LinkedIn (OAuth, OAuth2)
@@ -144,6 +150,8 @@ Supported Providers
 - Mail.Ru (OAuth2)
 
 - MailChimp (OAuth2)
+
+- MediaWiki (OAuth2)
 
 - Meetup (OAuth2)
 
