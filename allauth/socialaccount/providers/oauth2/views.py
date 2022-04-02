@@ -84,6 +84,7 @@ class OAuth2View(object):
         callback_url = self.adapter.get_callback_url(request, app)
         provider = self.adapter.get_provider()
         scope = provider.get_scope(request)
+        pkce_config = provider.get_pkce_params()
         client = self.adapter.client_class(
             self.request,
             app.client_id,
@@ -95,6 +96,7 @@ class OAuth2View(object):
             scope_delimiter=self.adapter.scope_delimiter,
             headers=self.adapter.headers,
             basic_auth=self.adapter.basic_auth,
+            **pkce_config
         )
         return client
 
@@ -107,6 +109,8 @@ class OAuth2LoginView(OAuth2View):
         action = request.GET.get("action", AuthAction.AUTHENTICATE)
         auth_url = self.adapter.authorize_url
         auth_params = provider.get_auth_params(request, action)
+        pkce_params = client.get_code_challenge()
+        auth_params.update(pkce_params)
         client.state = SocialLogin.stash_state(request)
         try:
             return HttpResponseRedirect(client.get_redirect_url(auth_url, auth_params))

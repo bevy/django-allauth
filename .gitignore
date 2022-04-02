@@ -3,6 +3,7 @@
 .idea
 .project
 .pydevproject
+.python-version
 *.geany
 docs/_build
 build

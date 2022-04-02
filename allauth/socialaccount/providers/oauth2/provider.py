@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 
 from allauth.socialaccount.providers.base import Provider
+from allauth.utils import generate_code_challenge
 
 
 class OAuth2Provider(Provider):
@@ -12,6 +13,13 @@ class OAuth2Provider(Provider):
         if kwargs:
             url = url + "?" + urlencode(kwargs)
         return url
+
+    def get_pkce_params(self):
+        settings = self.get_settings()
+        if settings.get("OAUTH_PKCE_ENABLED", False):
+            pkce_code_params = generate_code_challenge()
+            return pkce_code_params
+        return {}
 
     def get_auth_params(self, request, action):
         settings = self.get_settings()
