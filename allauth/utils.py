@@ -1,10 +1,8 @@
 import base64
-import hashlib
 import importlib
 import json
 import random
 import re
-from secrets import token_urlsafe
 import string
 import unicodedata
 from collections import OrderedDict
@@ -311,17 +309,3 @@ def get_request_param(request, param, default=None):
     if request is None:
         return default
     return request.POST.get(param) or request.GET.get(param, default)
-
-
-def generate_code_challenge():
-    # minimum length of 43 characters, maximum length of 128 characters
-    # each nbytes is 1.3 characters; 128/1.3 = 98
-    nbytes = random.randint(43, 128)
-    code_verifier = token_urlsafe(nbytes)
-    hashed_verifier =  hashlib.sha256(code_verifier.encode("ascii"))
-    code_challenge = base64.urlsafe_b64encode(hashed_verifier.digest())
-    return {
-        "code_verifier": code_verifier,
-        "code_challenge_method": "S256",
-        "code_challenge": code_challenge
-    }

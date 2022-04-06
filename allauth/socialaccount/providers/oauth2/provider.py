@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 
 from allauth.socialaccount.providers.base import Provider
-from allauth.utils import generate_code_challenge
+from .utils import generate_code_challenge
 
 
 class OAuth2Provider(Provider):
