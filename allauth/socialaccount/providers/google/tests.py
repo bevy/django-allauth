@@ -96,6 +96,51 @@ class GoogleTests(OAuth2TestsMixin, TestCase):
             with self.assertRaises(HTTPError):
                 adapter.complete_login(request, app, token)
 
+    @override_settings(
+        SOCIALACCOUNT_PROVIDERS={
+            "google": {
+                "OAUTH_PKCE_ENABLED": "True"
+            },
+        }
+    )
+    def test_google_compelete_pkce_login_401(self):
+        from allauth.socialaccount.providers.google.views import (
+            GoogleOAuth2Adapter,
+        )
+
+        class LessMockedResponse(MockedResponse):
+            def raise_for_status(self):
+                if self.status_code != 200:
+                    raise HTTPError(None)
+
+        request = RequestFactory().get(
+            reverse(self.provider.id + "_login"), dict(process="login")
+        )
+
+        adapter = GoogleOAuth2Adapter(request)
+        app = adapter.get_provider().get_app(request)
+        token = SocialToken(token="some_token")
+        response_with_401 = LessMockedResponse(
+            401,
+            """
+            {"error": {
+              "errors": [{
+                "domain": "global",
+                "reason": "authError",
+                "message": "Invalid Credentials",
+                "locationType": "header",
+                "location": "Authorization" } ],
+              "code": 401,
+              "message": "Invalid Credentials" }
+            }""",
+        )
+        with patch(
+            "allauth.socialaccount.providers.google.views.requests"
+        ) as patched_requests:
+            patched_requests.get.return_value = response_with_401
+            with self.assertRaises(HTTPError):
+                adapter.complete_login(request, app, token)
+
     def test_username_based_on_email(self):
         first_name = "明"
         last_name = "小"

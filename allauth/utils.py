@@ -322,6 +322,6 @@ def generate_code_challenge():
     code_challenge = base64.urlsafe_b64encode(hashed_verifier.digest())
     return {
         "code_verifier": code_verifier,
-        "transformation": "S256",
+        "code_challenge_method": "S256",
         "code_challenge": code_challenge
     }
