@@ -21,9 +21,6 @@ class OAuth2Client(object):
         scope_delimiter=" ",
         headers=None,
         basic_auth=False,
-        code_verifier=None,
-        code_challenge=None,
-        code_challenge_method=None
     ):
         self.request = request
         self.access_token_method = access_token_method
@@ -33,9 +30,6 @@ class OAuth2Client(object):
         self.consumer_secret = consumer_secret
         self.scope = scope_delimiter.join(set(scope))
         self.state = None
-        self.code_verifier = code_verifier
-        self.code_challenge = code_challenge
-        self.code_challenge_method = code_challenge_method
         self.headers = headers
         self.basic_auth = basic_auth
 
@@ -51,16 +45,7 @@ class OAuth2Client(object):
         params.update(extra_params)
         return "%s?%s" % (authorization_url, urlencode(params))
 
-    def get_code_challenge(self):
-        data = {}
-        if self.code_challenge and self.code_challenge_method:
-            data = {
-                "code_challenge": self.code_challenge,
-                "code_challenge_method": self.code_challenge_method
-            }
-        return data
-
-    def get_access_token(self, code):
+    def get_access_token(self, code, pkce_code_verifier=None):
         data = {
             "redirect_uri": self.callback_url,
             "grant_type": "authorization_code",
@@ -82,8 +67,8 @@ class OAuth2Client(object):
         if self.access_token_method == "GET":
             params = data
             data = None
-        if data and self.code_verifier:
-            data["code_verifier"] = self.code_verifier
+        if data and pkce_code_verifier:
+            data["code_verifier"] = pkce_code_verifier
         # TODO: Proper exception handling
         resp = requests.request(
             self.access_token_method,
