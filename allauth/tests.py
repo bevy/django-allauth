@@ -16,9 +16,9 @@ from . import utils
 
 
 try:
-    from unittest.mock import Mock, patch
+    from unittest.mock import patch, Mock
 except ImportError:
-    from mock import Mock, patch  # noqa
+    from mock import patch, Mock  # noqa
 
 
 class MockedResponse(object):
@@ -56,7 +56,7 @@ class mocked_response:
                     return self.responses.pop(0)
                 return f(*args, **kwargs)
 
-            return new_f
+            return Mock(side_effect=new_f)
 
         requests.get = mockable_request(requests.get)
         requests.post = mockable_request(requests.post)

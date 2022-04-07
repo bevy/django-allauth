@@ -5,6 +5,7 @@ import random
 import warnings
 from urllib.parse import parse_qs, urlparse
 
+import requests
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages.middleware import MessageMiddleware
@@ -183,7 +184,7 @@ class OAuth2TestsMixin(object):
                 set(pkce_params.keys()),
                 {'code_challenge', 'code_challenge_method', 'code_verifier'},
             )
-            hashed_verifier =  hashlib.sha256(pkce_params["code_verifier"].encode("ascii"))
+            hashed_verifier = hashlib.sha256(pkce_params["code_verifier"].encode("ascii"))
             code_challenge = base64.urlsafe_b64encode(hashed_verifier.digest())
             assert pkce_params['code_challenge'] == code_challenge
                     
@@ -221,7 +222,6 @@ class OAuth2TestsMixin(object):
         provider_settings = app_settings.PROVIDERS.get(self.provider_id, {})
         provider_settings_with_pkce_enabled = provider_settings.copy()
         provider_settings_with_pkce_enabled["OAUTH_PKCE_ENABLED"] = True
-
         with self.settings(SOCIALACCOUNT_PROVIDERS={
             self.provider_id: provider_settings_with_pkce_enabled
         }):
@@ -229,6 +229,7 @@ class OAuth2TestsMixin(object):
             if not resp_mock:
                 warnings.warn("Cannot test provider %s, no oauth mock" % self.provider.id)
                 return
+
             resp = self.login(
                 resp_mock,
             )
@@ -292,21 +293,38 @@ class OAuth2TestsMixin(object):
         pkce_enabled = app_settings.PROVIDERS.get(
             self.provider_id, {}
         ).get("OAUTH_PKCE_ENABLED", False)
+
         self.assertEqual("code_challenge" in q, pkce_enabled)
         self.assertEqual("code_challenge_method" in q, pkce_enabled)
         if pkce_enabled:
+            code_challenge = q["code_challenge"][0]
             self.assertEqual(q["code_challenge_method"][0], "S256")
-        
+
         complete_url = reverse(self.provider.id + "_callback")
         self.assertGreater(q["redirect_uri"][0].find(complete_url), 0)
         response_json = self.get_login_response_json(
             with_refresh_token=with_refresh_token
         )
+
         with mocked_response(
             MockedResponse(200, response_json, {"content-type": "application/json"}),
             resp_mock,
         ):
             resp = self.client.get(complete_url, self.get_complete_parameters(q))
+            
+            # Find the access token POST request, and assert that it contains
+            # the correct code_verifier if and only if PKCE is enabled
+            request_calls = requests.request.call_args_list
+            for args, kwargs in request_calls:
+                data = kwargs.get("data", {})
+                if args[0] == "POST" and isinstance(data, dict) and data.get("redirect_uri", "").endswith(complete_url):
+                    self.assertEqual("code_verifier" in data, pkce_enabled)
+                    
+                    if pkce_enabled:
+                        hashed_code_verifier = hashlib.sha256(data["code_verifier"].encode("ascii"))
+                        expected_code_challenge = base64.urlsafe_b64encode(hashed_code_verifier.digest()).decode()
+                        self.assertEqual(code_challenge, expected_code_challenge)
+
         return resp
 
     def get_complete_parameters(self, q):

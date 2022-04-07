@@ -34,29 +34,3 @@ class OktaTests(OAuth2TestsMixin, TestCase):
             }
         """,
         )
-
-    @override_settings(
-        SOCIALACCOUNT_PROVIDERS={
-            "okta": {
-                "OAUTH_PKCE_ENABLED": "True"
-            },
-        },
-        SOCIALACCOUNT_AUTO_SIGNUP=False
-    )
-    def test_login(self):
-        resp_mocks = self.get_mocked_response()
-        print("starting self.login\n")
-        resp = self.login(resp_mocks)
-        print("resp", resp.__dict__)
-        # assert resp has a code_challn
-        self.assertRedirects(resp, reverse("socialaccount_signup"))
-        resp = self.client.get(reverse("socialaccount_signup"))
-        sociallogin = resp.context["form"].sociallogin
-        data = dict(
-            email=user_email(sociallogin.user),
-            username=str(58931054823194),
-        )
-        resp = self.client.post(reverse("socialaccount_signup"), data=data)
-        self.assertRedirects(resp, "/accounts/profile/", fetch_redirect_response=False)
-        user = resp.context["user"]
-        self.assertFalse(user.has_usable_password())
