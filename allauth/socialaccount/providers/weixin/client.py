@@ -40,6 +40,8 @@ class WeixinOAuth2Client(OAuth2Client):
         if self.access_token_method == "GET":
             params = data
             data = None
+        if data and self.code_verifier:
+            data["code_verifier"] = self.code_verifier
         # TODO: Proper exception handling
         resp = requests.request(self.access_token_method, url, params=params, data=data)
         access_token = None

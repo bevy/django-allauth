@@ -60,6 +60,8 @@ class AppleOAuth2Client(OAuth2Client):
             "redirect_uri": self.callback_url,
             "client_secret": client_secret,
         }
+        if self.code_verifier:
+            data["code_verifier"] = self.code_verifier
         self._strip_empty_keys(data)
         resp = requests.request(
             self.access_token_method, url, data=data, headers=self.headers
