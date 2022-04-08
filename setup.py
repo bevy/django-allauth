@@ -132,7 +132,6 @@ METADATA = dict(
         "requests-oauthlib >= 0.3.0",
         "requests",
         "pyjwt[crypto] >= 1.7",
-        "python2-secrets; python_version < 3.6",
     ],
     include_package_data=True,
     classifiers=[
