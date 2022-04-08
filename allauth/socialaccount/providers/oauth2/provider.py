@@ -4,6 +4,7 @@ from django.urls import reverse
 from django.utils.http import urlencode
 
 from allauth.socialaccount.providers.base import Provider
+
 from .utils import generate_code_challenge
 
 

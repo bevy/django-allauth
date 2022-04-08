@@ -16,9 +16,9 @@ from . import utils
 
 
 try:
-    from unittest.mock import patch, Mock
+    from unittest.mock import Mock, patch
 except ImportError:
-    from mock import patch, Mock  # noqa
+    from mock import Mock, patch  # noqa
 
 
 class MockedResponse(object):

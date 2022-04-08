@@ -1,11 +1,3 @@
-import base64
-import hashlib
-
-from django.test.client import RequestFactory
-from django.test.utils import override_settings
-from django.urls import reverse
-
-from allauth.account.utils import user_email
 from allauth.socialaccount.tests import OAuth2TestsMixin
 from allauth.tests import MockedResponse, TestCase
 

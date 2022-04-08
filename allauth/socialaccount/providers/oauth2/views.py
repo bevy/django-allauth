@@ -114,7 +114,7 @@ class OAuth2LoginView(OAuth2View):
         auth_params.update(pkce_params)
         if code_verifier:
             request.session["pkce_code_verifier"] = code_verifier
-        
+
         client.state = SocialLogin.stash_state(request)
         try:
             return HttpResponseRedirect(client.get_redirect_url(auth_url, auth_params))
