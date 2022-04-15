@@ -1,3 +1,16 @@
+0.50.0 (2022-03-25)
+*******************
+
+Note worthy changes
+-------------------
+
+- Fixed compatibility issue with setuptools 61.
+
+- New providers: Drip.
+
+- The Facebook API version now defaults to v13.0.
+
+
 0.49.0 (2022-02-22)
 *******************
 
@@ -19,6 +32,8 @@ Note worthy changes
 
 Backwards incompatible changes
 ------------------------------
+
+- The Microsoft ``tenant`` setting must now be specified using uppercase ``TENANT``.
 
 - Changed naming of ``internal_reset_url_key`` attribute in
   ``allauth.account.views.PasswordResetFromKeyView`` to ``reset_url_key``.

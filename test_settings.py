@@ -1,6 +1,7 @@
 SECRET_KEY = "psst"
 SITE_ID = 1
 ALLOWED_HOSTS = ("*",)
+USE_I18N = False
 
 DATABASES = {
     "default": {
@@ -78,6 +79,7 @@ INSTALLED_APPS = (
     "allauth.socialaccount.providers.douban",
     "allauth.socialaccount.providers.doximity",
     "allauth.socialaccount.providers.draugiem",
+    "allauth.socialaccount.providers.drip",
     "allauth.socialaccount.providers.dropbox",
     "allauth.socialaccount.providers.dwolla",
     "allauth.socialaccount.providers.edmodo",
