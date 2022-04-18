@@ -28,11 +28,11 @@ class UntappdOAuth2Client(OAuth2Client):
         params = None
         self._strip_empty_keys(data)
         url = self.access_token_url
+        if pkce_code_verifier:
+            data["code_verifier"] = pkce_code_verifier
         if self.access_token_method == "GET":
             params = data
             data = None
-        if data and pkce_code_verifier:
-            data["code_verifier"] = pkce_code_verifier
         # Allow custom User Agent to comply with Untappd API
         settings = app_settings.PROVIDERS.get(UntappdProvider.id, {})
         headers = {"User-Agent": settings.get("USER_AGENT", "django-allauth")}

@@ -64,11 +64,11 @@ class OAuth2Client(object):
         params = None
         self._strip_empty_keys(data)
         url = self.access_token_url
+        if pkce_code_verifier:
+            data["code_verifier"] = pkce_code_verifier
         if self.access_token_method == "GET":
             params = data
             data = None
-        if data and pkce_code_verifier:
-            data["code_verifier"] = pkce_code_verifier
         # TODO: Proper exception handling
         resp = requests.request(
             self.access_token_method,

@@ -37,11 +37,11 @@ class WeixinOAuth2Client(OAuth2Client):
         params = None
         self._strip_empty_keys(data)
         url = self.access_token_url
+        if pkce_code_verifier:
+            data["code_verifier"] = pkce_code_verifier
         if self.access_token_method == "GET":
             params = data
             data = None
-        if data and pkce_code_verifier:
-            data["code_verifier"] = pkce_code_verifier
         # TODO: Proper exception handling
         resp = requests.request(self.access_token_method, url, params=params, data=data)
         access_token = None
