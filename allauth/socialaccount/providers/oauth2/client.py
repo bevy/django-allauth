@@ -1,7 +1,11 @@
+import logging
 import requests
 from urllib.parse import parse_qsl
 
 from django.utils.http import urlencode
+
+
+logger = logging.getLogger(__name__)
 
 
 class OAuth2Error(Exception):
@@ -46,7 +50,7 @@ class OAuth2Client(object):
         return "%s?%s" % (authorization_url, urlencode(params))
 
     def get_access_token(self, code, pkce_code_verifier=None):
-        print(f"get_access_token called with code: {code} , pkce_code_verifier: {pkce_code_verifier}")
+        logger.info(f"get_access_token called with code: {code} , pkce_code_verifier: {pkce_code_verifier}")
         data = {
             "redirect_uri": self.callback_url,
             "grant_type": "authorization_code",
@@ -70,9 +74,9 @@ class OAuth2Client(object):
         if self.access_token_method == "GET":
             params = data
             data = None
-        print(f"access token request method: {self.access_token_method}")
-        print(f"access token request params: {params}")
-        print(f"access token request data: {data}")
+        logger.info(f"access token request method: {self.access_token_method}")
+        logger.info(f"access token request params: {params}")
+        logger.info(f"access token request data: {data}")
         # TODO: Proper exception handling
         resp = requests.request(
             self.access_token_method,
@@ -82,7 +86,7 @@ class OAuth2Client(object):
             headers=self.headers,
             auth=auth,
         )
-        print(f"access token response: {resp.__dict__}")
+        logger.info(f"access token response: {resp.__dict__}")
         access_token = None
         if resp.status_code in [200, 201]:
             # Weibo sends json via 'text/plain;charset=UTF-8'
