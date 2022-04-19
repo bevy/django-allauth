@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 from datetime import timedelta
-import logging
 from requests import RequestException
 
 from django.core.exceptions import PermissionDenied
@@ -24,9 +23,6 @@ from allauth.socialaccount.providers.oauth2.client import (
 from allauth.utils import build_absolute_uri, get_request_param
 
 from ..base import AuthAction, AuthError
-
-
-logger = logging.getLogger(__name__)
 
 
 class OAuth2Adapter(object):
@@ -66,10 +62,8 @@ class OAuth2Adapter(object):
         return token
 
     def get_access_token_data(self, request, app, client):
-        logger.info(f"get_access_token_data called with request: {request} , app: {app} , client: {client}")
         code = get_request_param(self.request, "code")
         pkce_code_verifier = request.session.pop("pkce_code_verifier", None)
-        logger.info(f"calling client.get_access_token with code: {code} , pkce_code_verifier: {pkce_code_verifier}")
         return client.get_access_token(code, pkce_code_verifier=pkce_code_verifier)
 
 
@@ -130,7 +124,6 @@ class OAuth2LoginView(OAuth2View):
 
 class OAuth2CallbackView(OAuth2View):
     def dispatch(self, request, *args, **kwargs):
-        logger.info(f"OAuth2CallbackView.dispatch called with request: {request.__dict__}")
         if "error" in request.GET or "code" not in request.GET:
             # Distinguish cancel from error
             auth_error = request.GET.get("error", None)
@@ -145,13 +138,9 @@ class OAuth2CallbackView(OAuth2View):
         client = self.get_client(self.request, app)
 
         try:
-            logger.info(f"calling adapter.get_access_token_data with request: {request.__dict__} , app: {app} , client: {client}")
             access_token = self.adapter.get_access_token_data(request, app, client)
-            logger.info(f"adapter.get_access_token_data returned access_token: {access_token}")
             token = self.adapter.parse_token(access_token)
-            logger.info(f"adapter.parse_token returned token: {token}")
             token.app = app
-            logger.info(f"calling adapter.complete_login with request: {request} , app: {app} , token: {token} , response: {access_token}")
             login = self.adapter.complete_login(
                 request, app, token, response=access_token
             )
