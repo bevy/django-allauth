@@ -188,7 +188,8 @@ class OAuth2TestsMixin(object):
                 pkce_params["code_verifier"].encode("ascii")
             )
             code_challenge = base64.urlsafe_b64encode(hashed_verifier.digest())
-            assert pkce_params["code_challenge"] == code_challenge
+            code_challenge_without_padding = code_challenge.rstrip(b"=")
+            assert pkce_params["code_challenge"] == code_challenge_without_padding
 
     @override_settings(SOCIALACCOUNT_AUTO_SIGNUP=False)
     def test_login(self):
@@ -338,9 +339,11 @@ class OAuth2TestsMixin(object):
                         hashed_code_verifier = hashlib.sha256(
                             data["code_verifier"].encode("ascii")
                         )
-                        expected_code_challenge = base64.urlsafe_b64encode(
-                            hashed_code_verifier.digest()
-                        ).decode()
+                        expected_code_challenge = (
+                            base64.urlsafe_b64encode(hashed_code_verifier.digest())
+                            .rstrip(b"=")
+                            .decode()
+                        )
                         self.assertEqual(code_challenge, expected_code_challenge)
 
         return resp
