@@ -9,6 +9,8 @@ from .utils import generate_code_challenge
 
 
 class OAuth2Provider(Provider):
+    pkce_enabled_default = False
+
     def get_login_url(self, request, **kwargs):
         url = reverse(self.id + "_login")
         if kwargs:
@@ -17,7 +19,7 @@ class OAuth2Provider(Provider):
 
     def get_pkce_params(self):
         settings = self.get_settings()
-        if settings.get("OAUTH_PKCE_ENABLED", False):
+        if settings.get("OAUTH_PKCE_ENABLED", self.pkce_enabled_default):
             pkce_code_params = generate_code_challenge()
             return pkce_code_params
         return {}
