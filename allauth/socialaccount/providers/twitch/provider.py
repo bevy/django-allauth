@@ -28,7 +28,6 @@ class TwitchProvider(OAuth2Provider):
     def extract_common_fields(self, data):
         return {
             "username": data.get("login"),
-            "display_name": data.get("display_name"),
             "email": data.get("email"),
         }
 
