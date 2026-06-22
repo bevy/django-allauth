@@ -30,11 +30,12 @@ jobs:
 
   # Legacy interpreter/Django combinations, kept for reference only. Many of
   # these Python versions are EOL and may not even be installable on current
-  # runners, so they are warn-only (continue-on-error) and never block a PR.
+  # runners. Tolerance lives at the STEP level (each step is continue-on-error)
+  # so a failure surfaces as a yellow ::warning:: annotation and the job stays
+  # green — job-level continue-on-error would still render a red ❌ in the PR.
   legacy:
     name: "legacy (py${{ matrix.python-version }} / django ${{ matrix.django-version }})"
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -79,26 +80,34 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
+      id: setup
+      continue-on-error: true
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
+      continue-on-error: true
       run: |
         python -m pip install --upgrade pip
         pip install tox tox-gh-actions
     - name: Tox Test
+      id: tox
+      continue-on-error: true
       run: tox
       env:
         PYTHON_VER: ${{ matrix.python-version }}
         DJANGO: ${{ matrix.django-version }}
+    - name: Warn on failure (non-blocking)
+      if: steps.setup.outcome != 'success' || steps.tox.outcome != 'success'
+      run: echo "::warning::legacy py${{ matrix.python-version }} / django ${{ matrix.django-version }} failed — non-blocking (EOL interpreter or unsupported combo). Platform runs py3.11/django4.2, gated by the 'test' job."
 
   # Lint/docs checks pin very old tool versions (black 21.6b0, flake8 3.9.2) and
   # ancient node, which no longer install cleanly on current runners. Warn-only
-  # until the toolchain is modernised.
+  # (step-level continue-on-error → yellow annotation, green job) until the
+  # toolchain is modernised.
   extra:
     name: "extra: ${{ matrix.extra-env }}"
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -106,18 +115,26 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions/setup-node@v4
+      continue-on-error: true
       if: ${{ matrix.extra-env == 'standardjs' }}
       with:
         node-version: '8'
     - name: Set up Python
+      continue-on-error: true
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - name: Install dependencies
+      continue-on-error: true
       run: |
         python -m pip install --upgrade pip
         pip install tox
     - name: Tox Test
+      id: tox
+      continue-on-error: true
       run: tox
       env:
         TOXENV: ${{ matrix.extra-env }}
+    - name: Warn on failure (non-blocking)
+      if: steps.tox.outcome != 'success'
+      run: echo "::warning::extra '${{ matrix.extra-env }}' failed — non-blocking (pins EOL lint/docs/node toolchain). Modernise the toolchain to re-enable as a gate."
