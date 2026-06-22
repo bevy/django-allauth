@@ -28,6 +28,58 @@ from .models import SocialAccount, SocialApp, SocialLogin
 from .views import signup
 
 
+class StateKitTests(TestCase):
+    def _request(self):
+        from importlib import import_module
+
+        request = RequestFactory().get("/")
+        engine = import_module(settings.SESSION_ENGINE)
+        request.session = engine.SessionStore()
+        return request
+
+    def test_stash_unstash_isolated(self):
+        from .internal import statekit
+
+        request = self._request()
+        sid1 = statekit.stash_state(request, {"a": 1})
+        sid2 = statekit.stash_state(request, {"a": 2})
+        self.assertNotEqual(sid1, sid2)
+        # peek does not consume
+        self.assertEqual(statekit.peek_state(request, sid1), {"a": 1})
+        self.assertEqual(statekit.unstash_state(request, sid1), {"a": 1})
+        # consuming one flow leaves the other intact
+        self.assertIsNone(statekit.unstash_state(request, sid1))
+        self.assertEqual(statekit.unstash_state(request, sid2), {"a": 2})
+
+    def test_ttl_expiry(self):
+        import time
+
+        from .internal import statekit
+
+        request = self._request()
+        sid = statekit.stash_state(request, {"a": 1})
+        states = request.session[statekit.STATES_SESSION_KEY]
+        state, _ = states[sid]
+        states[sid] = (state, time.time() - statekit.STATE_TTL - 1)
+        request.session[statekit.STATES_SESSION_KEY] = states
+        self.assertIsNone(statekit.peek_state(request, sid))
+        self.assertIsNone(statekit.unstash_state(request, sid))
+
+    def test_max_states_eviction(self):
+        from .internal import statekit
+
+        request = self._request()
+        sids = [
+            statekit.stash_state(request, {"i": i})
+            for i in range(statekit.MAX_STATES + 3)
+        ]
+        states = request.session[statekit.STATES_SESSION_KEY]
+        self.assertLessEqual(len(states), statekit.MAX_STATES + 1)
+        # oldest evicted, newest retained
+        self.assertNotIn(sids[0], states)
+        self.assertIn(sids[-1], states)
+
+
 def setup_app(provider):
     app = None
     if not app_settings.PROVIDERS.get(provider.id, {}).get("APP"):
@@ -252,6 +304,57 @@ class OAuth2TestsMixin(object):
                 resp_mock,
             )
             self.assertRedirects(resp, reverse("socialaccount_signup"))
+
+    def test_login_with_pkce_concurrent_flows_isolated(self):
+        """
+        Two overlapping PKCE login flows in the same session must not clobber
+        each other. Each flow is stored under its own state_id in
+        ``socialaccount_states`` and carries its own PKCE verifier, so a second
+        flow started before the first completes does not overwrite the first
+        flow's verifier (the original "We're having a problem logging you in"
+        bug).
+        """
+        from allauth.socialaccount.internal import statekit
+
+        provider_settings = app_settings.PROVIDERS.get(self.provider_id, {})
+        provider_settings_with_pkce_enabled = provider_settings.copy()
+        provider_settings_with_pkce_enabled["OAUTH_PKCE_ENABLED"] = True
+        with self.settings(
+            SOCIALACCOUNT_PROVIDERS={
+                self.provider_id: provider_settings_with_pkce_enabled
+            }
+        ):
+            # Initiate two overlapping login flows.
+            flows = []
+            for _ in range(2):
+                resp = self.client.post(
+                    reverse(self.provider.id + "_login")
+                    + "?"
+                    + urlencode(dict(process="login"))
+                )
+                flows.append(parse_qs(urlparse(resp["location"]).query))
+
+            # Skip providers that don't use the standard state + PKCE redirect
+            # (e.g. providers with custom login flows).
+            if not all("state" in q and "code_challenge" in q for q in flows):
+                return
+
+            sid1, sid2 = flows[0]["state"][0], flows[1]["state"][0]
+            self.assertNotEqual(sid1, sid2)
+
+            states = self.client.session.get(statekit.STATES_SESSION_KEY, {})
+            # Both in-flight flows coexist; the second did not overwrite the
+            # first (the old code used a single shared slot).
+            self.assertIn(sid1, states)
+            self.assertIn(sid2, states)
+            # Each flow carries its own distinct PKCE verifier.
+            verifier1 = states[sid1][0].get("pkce_code_verifier")
+            verifier2 = states[sid2][0].get("pkce_code_verifier")
+            self.assertIsNotNone(verifier1)
+            self.assertIsNotNone(verifier2)
+            self.assertNotEqual(verifier1, verifier2)
+            # The legacy flat key must not be used.
+            self.assertNotIn("pkce_code_verifier", self.client.session)
 
     def test_account_tokens(self, multiple_login=False):
         if not app_settings.STORE_TOKENS:
