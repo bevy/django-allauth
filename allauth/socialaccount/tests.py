@@ -332,6 +332,10 @@ class OAuth2TestsMixin(object):
                     + "?"
                     + urlencode(dict(process="login"))
                 )
+                # Skip providers whose login doesn't redirect straight to the
+                # IdP (e.g. shopify renders a shop-name form first).
+                if resp.status_code != 302 or "location" not in resp:
+                    return
                 flows.append(parse_qs(urlparse(resp["location"]).query))
 
             # Skip providers that don't use the standard state + PKCE redirect
