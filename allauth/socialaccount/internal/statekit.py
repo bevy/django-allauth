@@ -18,6 +18,20 @@ STATE_ID_LENGTH = 16
 MAX_STATES = 10
 STATE_TTL = 600
 STATES_SESSION_KEY = "socialaccount_states"
+# allauth 0.50.0's single-slot key. Kept for backward compatibility: callers
+# that stashed under the old key (Platform's custom non-oauth2 providers such
+# as ssoclient and saml2) must still be able to recover their state.
+LEGACY_STATE_SESSION_KEY = "socialaccount_state"
+
+
+def _mark_modified(request):
+    # Real Django SessionStore needs an explicit ``modified`` flag because we
+    # mutate the states dict in place (same object reference). A plain dict
+    # session — used by some custom providers' tests — has no such attribute,
+    # so guard the write rather than assume a SessionStore.
+    session = request.session
+    if hasattr(session, "modified"):
+        session.modified = True
 
 
 def get_oldest_state(states, rev=False):
@@ -60,7 +74,7 @@ def stash_state(request, state, state_id=None):
         state_id = get_random_string(STATE_ID_LENGTH)
     states[state_id] = (state, time.time())
     request.session[STATES_SESSION_KEY] = states
-    request.session.modified = True
+    _mark_modified(request)
     return state_id
 
 
@@ -86,8 +100,25 @@ def unstash_state(request, state_id):
             state = None
         del states[state_id]
         request.session[STATES_SESSION_KEY] = states
-        request.session.modified = True
+        _mark_modified(request)
     return state
+
+
+def _unstash_legacy_state(request):
+    """Recover (and consume) state stored under allauth 0.50.0's single slot.
+
+    0.50.0 stored ``(state, verifier)``; a real session JSON-round-trips the
+    tuple into a list. Return just the ``state`` payload, matching the old
+    ``SocialLogin.unstash_state`` contract.
+    """
+    legacy = request.session.get(LEGACY_STATE_SESSION_KEY)
+    if legacy is None:
+        return None
+    del request.session[LEGACY_STATE_SESSION_KEY]
+    _mark_modified(request)
+    if isinstance(legacy, (tuple, list)) and len(legacy) == 2:
+        return legacy[0]
+    return legacy
 
 
 def unstash_last_state(request):
@@ -95,4 +126,7 @@ def unstash_last_state(request):
     state_id, state = get_oldest_state(states, rev=True)
     if state_id:
         unstash_state(request, state_id)
-    return state
+        return state
+    # No multi-slot state — fall back to the legacy single slot so callers that
+    # stashed the old way (custom non-oauth2 providers) still recover.
+    return _unstash_legacy_state(request)
