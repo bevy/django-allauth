@@ -78,14 +78,19 @@ class DraugiemTests(TestCase):
 
     def mock_socialaccount_state(self):
         """
-        SocialLogin depends on Session state - a tuple of request
-        params and a random string
+        SocialLogin depends on Session state - a state dict stored under a
+        random state_id in the ``socialaccount_states`` slot, paired with a
+        timestamp.
         """
+        import time
+
         session = self.client.session
-        session["socialaccount_state"] = (
-            {"process": "login", "scope": "", "auth_params": ""},
-            "12345",
-        )
+        session["socialaccount_states"] = {
+            "12345": (
+                {"process": "login", "scope": "", "auth_params": ""},
+                time.time(),
+            )
+        }
         session.save()
 
     def test_login_redirect(self):

@@ -64,9 +64,8 @@ class OAuth2Adapter(object):
             token.expires_at = timezone.now() + timedelta(seconds=int(expires_in))
         return token
 
-    def get_access_token_data(self, request, app, client):
+    def get_access_token_data(self, request, app, client, pkce_code_verifier=None):
         code = get_request_param(self.request, "code")
-        pkce_code_verifier = request.session.pop("pkce_code_verifier", None)
         return client.get_access_token(code, pkce_code_verifier=pkce_code_verifier)
 
 
@@ -115,10 +114,15 @@ class OAuth2LoginView(OAuthLoginMixin, OAuth2View):
         pkce_params = provider.get_pkce_params()
         code_verifier = pkce_params.pop("code_verifier", None)
         auth_params.update(pkce_params)
-        if code_verifier:
-            request.session["pkce_code_verifier"] = code_verifier
 
-        client.state = SocialLogin.stash_state(request)
+        # Stash the PKCE verifier inside this flow's own state entry (keyed by a
+        # unique state_id) instead of a single shared session slot, so that
+        # concurrent login flows in the same session do not overwrite each
+        # other's verifier.
+        state = SocialLogin.state_from_request(request)
+        if code_verifier:
+            state["pkce_code_verifier"] = code_verifier
+        client.state = SocialLogin.stash_state(request, state)
         try:
             return HttpResponseRedirect(client.get_redirect_url(auth_url, auth_params))
         except OAuth2Error as e:
@@ -141,19 +145,29 @@ class OAuth2CallbackView(OAuth2View):
         client = self.get_client(self.request, app)
 
         try:
-            access_token = self.adapter.get_access_token_data(request, app, client)
+            # Recover this flow's state first, so the PKCE verifier travels with
+            # it. The state is keyed by the echoed `state` param (a unique
+            # state_id), which isolates concurrent flows from one another.
+            if self.adapter.supports_state:
+                state = SocialLogin.verify_and_unstash_state(
+                    request, get_request_param(request, "state")
+                )
+            else:
+                state = SocialLogin.unstash_state(request)
+
+            access_token = self.adapter.get_access_token_data(
+                request,
+                app,
+                client,
+                pkce_code_verifier=state.get("pkce_code_verifier"),
+            )
             token = self.adapter.parse_token(access_token)
             token.app = app
             login = self.adapter.complete_login(
                 request, app, token, response=access_token
             )
             login.token = token
-            if self.adapter.supports_state:
-                login.state = SocialLogin.verify_and_unstash_state(
-                    request, get_request_param(request, "state")
-                )
-            else:
-                login.state = SocialLogin.unstash_state(request)
+            login.state = state
 
             return complete_social_login(request, login)
         except (

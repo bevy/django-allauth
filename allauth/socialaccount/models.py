@@ -4,7 +4,6 @@ from django.contrib.auth import authenticate
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import PermissionDenied
 from django.db import models
-from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
 
 import allauth.app_settings
@@ -16,6 +15,7 @@ from ..utils import get_request_param
 from . import app_settings, providers
 from .adapter import get_adapter
 from .fields import JSONField
+from .internal import statekit
 
 
 class SocialAppManager(models.Manager):
@@ -310,24 +310,21 @@ class SocialLogin(object):
         return state
 
     @classmethod
-    def stash_state(cls, request):
-        state = cls.state_from_request(request)
-        verifier = get_random_string(12)
-        request.session["socialaccount_state"] = (state, verifier)
-        return verifier
+    def stash_state(cls, request, state=None):
+        if state is None:
+            state = cls.state_from_request(request)
+        return statekit.stash_state(request, state)
 
     @classmethod
     def unstash_state(cls, request):
-        if "socialaccount_state" not in request.session:
+        state = statekit.unstash_last_state(request)
+        if state is None:
             raise PermissionDenied()
-        state, verifier = request.session.pop("socialaccount_state")
         return state
 
     @classmethod
-    def verify_and_unstash_state(cls, request, verifier):
-        if "socialaccount_state" not in request.session:
-            raise PermissionDenied()
-        state, verifier2 = request.session.pop("socialaccount_state")
-        if verifier != verifier2:
+    def verify_and_unstash_state(cls, request, state_id):
+        state = statekit.unstash_state(request, state_id)
+        if state is None:
             raise PermissionDenied()
         return state

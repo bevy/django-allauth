@@ -8,9 +8,12 @@ class CernTests(OAuth2TestsMixin, TestCase):
     provider_id = CernProvider.id
 
     def get_mocked_response(self):
-        return MockedResponse(
-            200,
-            """
+        # complete_login() makes two API calls — the user profile and then the
+        # groups endpoint — so two responses must be mocked.
+        return [
+            MockedResponse(
+                200,
+                """
         {
             "name":"Max Mustermann",
             "username":"mmuster",
@@ -25,4 +28,13 @@ class CernTests(OAuth2TestsMixin, TestCase):
             "mobile":null
         }
         """,
-        )
+            ),
+            MockedResponse(
+                200,
+                """
+        {
+            "groups":["cern-users","admins"]
+        }
+        """,
+            ),
+        ]
