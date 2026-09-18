@@ -808,8 +808,7 @@ class SocialAccountTests(TestCase):
             reverse("socialaccount_signup"), data={"email": "me@example.com"}
         )
         self.assertFormError(
-            resp,
-            "form",
+            resp.context["form"],
             "email",
             "An account already exists with this e-mail address."
             " Please sign in to that account first, then connect"

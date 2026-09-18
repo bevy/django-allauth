@@ -159,8 +159,7 @@ class AccountTests(TestCase):
             },
         )
         self.assertFormError(
-            resp,
-            "form",
+            resp.context["form"],
             "password2",
             "You must type the same password each time.",
         )
@@ -599,8 +598,7 @@ class AccountTests(TestCase):
                 },
             )
             self.assertFormError(
-                resp,
-                "form",
+                resp.context["form"],
                 None,
                 "Too many failed login attempts. Try again later."
                 if is_locked
@@ -629,8 +627,7 @@ class AccountTests(TestCase):
             reverse("account_login"), {"login": user.email, "password": "bad"}
         )
         self.assertFormError(
-            resp,
-            "form",
+            resp.context["form"],
             None,
             "The e-mail address and/or password you specified are not correct.",
         )
@@ -639,8 +636,7 @@ class AccountTests(TestCase):
             reverse("account_login"), {"login": user.email, "password": "bad"}
         )
         self.assertFormError(
-            resp,
-            "form",
+            resp.context["form"],
             None,
             "Too many failed login attempts. Try again later.",
         )
@@ -904,10 +900,9 @@ class AccountTests(TestCase):
                 "password2": "johndoe",
             },
         )
-        self.assertFormError(resp, "form", None, [])
+        self.assertFormError(resp.context["form"], None, [])
         self.assertFormError(
-            resp,
-            "form",
+            resp.context["form"],
             "password1",
             ["This password is too short. It must contain at least 9 characters."],
         )
