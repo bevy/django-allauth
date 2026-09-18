@@ -8,10 +8,18 @@ on:
 
 jobs:
   # Authoritative gate: the Python + Django versions Bevy Platform runs in
-  # production. This job must pass.
+  # production. Both jobs must pass.
+  #
+  # Platform pins django==5.2.13 (requirements.txt), so 5.2 is the version that
+  # decides whether this fork is safe to ship. 4.2 stays in the matrix because
+  # the fork supported it first and a regression there is still a regression.
   test:
-    name: test (py3.11 / django 4.2 — Platform)
+    name: "test (py3.11 / django ${{ matrix.django-version }}${{ matrix.django-version == '5.2' && ' — Platform' || '' }})"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        django-version: ['4.2', '5.2']
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -26,7 +34,7 @@ jobs:
       run: tox
       env:
         PYTHON_VER: '3.11'
-        DJANGO: '4.2'
+        DJANGO: ${{ matrix.django-version }}
 
   # Legacy interpreter/Django combinations, kept for reference only. Many of
   # these Python versions are EOL and may not even be installable on current
@@ -99,7 +107,7 @@ jobs:
         DJANGO: ${{ matrix.django-version }}
     - name: Warn on failure (non-blocking)
       if: steps.setup.outcome != 'success' || steps.tox.outcome != 'success'
-      run: echo "::warning::legacy py${{ matrix.python-version }} / django ${{ matrix.django-version }} failed — non-blocking (EOL interpreter or unsupported combo). Platform runs py3.11/django4.2, gated by the 'test' job."
+      run: echo "::warning::legacy py${{ matrix.python-version }} / django ${{ matrix.django-version }} failed — non-blocking (EOL interpreter or unsupported combo). Platform runs py3.11/django5.2, gated by the 'test' job."
 
   # Lint/docs checks pin very old tool versions (black 21.6b0, flake8 3.9.2) and
   # ancient node, which no longer install cleanly on current runners. Warn-only
