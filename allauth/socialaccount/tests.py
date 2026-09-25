@@ -60,10 +60,36 @@ class StateKitTests(TestCase):
         sid = statekit.stash_state(request, {"a": 1})
         states = request.session[statekit.STATES_SESSION_KEY]
         state, _ = states[sid]
-        states[sid] = (state, time.time() - statekit.STATE_TTL - 1)
+        states[sid] = (state, time.time() - statekit.get_state_ttl() - 1)
         request.session[statekit.STATES_SESSION_KEY] = states
         self.assertIsNone(statekit.peek_state(request, sid))
         self.assertIsNone(statekit.unstash_state(request, sid))
+
+    def test_state_ttl_setting_overrides_the_default(self):
+        import time
+
+        from .internal import statekit
+
+        # Older than the 600 second default, younger than the override.
+        age = statekit.STATE_TTL + 600
+
+        def stash_aged():
+            request = self._request()
+            sid = statekit.stash_state(request, {"a": 1})
+            states = request.session[statekit.STATES_SESSION_KEY]
+            state, _ = states[sid]
+            states[sid] = (state, time.time() - age)
+            request.session[statekit.STATES_SESSION_KEY] = states
+            return request, sid
+
+        # Control: the default expires it.
+        request, sid = stash_aged()
+        self.assertIsNone(statekit.peek_state(request, sid))
+
+        # The setting keeps it alive.
+        request, sid = stash_aged()
+        with override_settings(SOCIALACCOUNT_STATE_TTL=age + 600):
+            self.assertEqual(statekit.peek_state(request, sid), {"a": 1})
 
     def test_max_states_eviction(self):
         from .internal import statekit

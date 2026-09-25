@@ -11,17 +11,31 @@ garbage collected by TTL and a hard cap on the number of concurrent states.
 
 import time
 
+from django.conf import settings
 from django.utils.crypto import get_random_string
 
 
 STATE_ID_LENGTH = 16
 MAX_STATES = 10
+# Upstream's default lifetime for a stashed state, in seconds. allauth
+# 0.50.0 applied no expiry at all, so this backport tightens the deadline
+# for every caller. A site that needs the older, longer window sets
+# ``SOCIALACCOUNT_STATE_TTL``. ``MAX_STATES`` still caps session growth.
 STATE_TTL = 600
 STATES_SESSION_KEY = "socialaccount_states"
 # allauth 0.50.0's single-slot key. Kept for backward compatibility: callers
 # that stashed under the old key (Platform's custom non-oauth2 providers such
 # as ssoclient and saml2) must still be able to recover their state.
 LEGACY_STATE_SESSION_KEY = "socialaccount_state"
+
+
+def get_state_ttl():
+    """Return the state lifetime in seconds.
+
+    Read the setting on each call. A module-level read occurs at import
+    time, which is before the test settings override can apply.
+    """
+    return getattr(settings, "SOCIALACCOUNT_STATE_TTL", STATE_TTL)
 
 
 def _mark_modified(request):
@@ -51,7 +65,8 @@ def get_oldest_state(states, rev=False):
 
 def gc_states(states):
     now = time.time()
-    expired_sids = [sid for sid, (_, ts) in states.items() if now - ts > STATE_TTL]
+    ttl = get_state_ttl()
+    expired_sids = [sid for sid, (_, ts) in states.items() if now - ts > ttl]
     for sid in expired_sids:
         del states[sid]
     if len(states) > MAX_STATES:
@@ -85,7 +100,7 @@ def peek_state(request, state_id):
     if state_ts is None:
         return None
     state, ts = state_ts
-    if time.time() - ts > STATE_TTL:
+    if time.time() - ts > get_state_ttl():
         return None
     return state
 
@@ -96,7 +111,7 @@ def unstash_state(request, state_id):
     state_ts = states.get(state_id)
     if state_ts is not None:
         state, ts = state_ts
-        if time.time() - ts > STATE_TTL:
+        if time.time() - ts > get_state_ttl():
             state = None
         del states[state_id]
         request.session[STATES_SESSION_KEY] = states
