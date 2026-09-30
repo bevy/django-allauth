@@ -12,8 +12,15 @@ VERSION = (0, 50, 0, "final", 0)
 
 __title__ = "django-allauth"
 __version_info__ = VERSION
-__version__ = ".".join(map(str, VERSION[:3])) + (
-    "-{}{}".format(VERSION[3], VERSION[4] or "") if VERSION[3] != "final" else ""
+# The local segment changes whenever this fork changes. pip then sees a new
+# version and reinstalls, instead of keeping an older build of the fork that
+# reports the same upstream version.
+LOCAL_VERSION = "bevy.1"
+__version__ = (
+    ".".join(map(str, VERSION[:3]))
+    + ("-{}{}".format(VERSION[3], VERSION[4] or "") if VERSION[3] != "final" else "")
+    + "+"
+    + LOCAL_VERSION
 )
 __author__ = "Raymond Penners"
 __license__ = "MIT"
