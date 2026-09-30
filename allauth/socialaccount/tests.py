@@ -91,6 +91,34 @@ class StateKitTests(TestCase):
         with override_settings(SOCIALACCOUNT_STATE_TTL=age + 600):
             self.assertEqual(statekit.peek_state(request, sid), {"a": 1})
 
+    def test_unstash_last_state_honours_the_ttl(self):
+        import time
+
+        from .internal import statekit
+
+        request = self._request()
+        sid = statekit.stash_state(request, {"a": 1})
+        self.assertEqual(statekit.peek_state(request, sid), {"a": 1})
+
+        states = request.session[statekit.STATES_SESSION_KEY]
+        state, _ = states[sid]
+        states[sid] = (state, time.time() - statekit.get_state_ttl() - 1)
+        request.session[statekit.STATES_SESSION_KEY] = states
+
+        # Callers without a state id (saml2, ssoclient) must not accept an
+        # expired state either. The expired entry is still consumed.
+        self.assertIsNone(statekit.unstash_last_state(request))
+        self.assertNotIn(sid, request.session[statekit.STATES_SESSION_KEY])
+
+    def test_unstash_last_state_returns_a_fresh_state(self):
+        from .internal import statekit
+
+        request = self._request()
+        statekit.stash_state(request, {"a": 1})
+
+        self.assertEqual(statekit.unstash_last_state(request), {"a": 1})
+        self.assertEqual(request.session[statekit.STATES_SESSION_KEY], {})
+
     def test_max_states_eviction(self):
         from .internal import statekit
 
