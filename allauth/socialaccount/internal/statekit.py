@@ -138,10 +138,10 @@ def _unstash_legacy_state(request):
 
 def unstash_last_state(request):
     states = get_states(request)
-    state_id, state = get_oldest_state(states, rev=True)
+    state_id, _ = get_oldest_state(states, rev=True)
     if state_id:
-        unstash_state(request, state_id)
-        return state
+        # The TTL-checked result, not the raw entry, or an expired state passes.
+        return unstash_state(request, state_id)
     # No multi-slot state — fall back to the legacy single slot so callers that
     # stashed the old way (custom non-oauth2 providers) still recover.
     return _unstash_legacy_state(request)
